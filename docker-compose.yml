@@ -1,0 +1,9 @@
+# Build et lancement en local : docker compose up -d --build
+services:
+  tafl:
+    build: .
+    image: tafl:local
+    container_name: tafl
+    ports:
+      - "8080:80"
+    restart: unless-stopped

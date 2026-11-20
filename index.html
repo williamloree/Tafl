@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tafl — Les échecs vikings</title>
+<style>
+:root{
+  --bg:#17130f; --panel:#251e17; --panel2:#2f261d; --ink:#f1e6d0; --muted:#b29f80;
+  --gold:#d8a94a; --gold2:#f3cf7a; --red:#c0533a; --wood1:#c8a26a; --wood2:#bd965c;
+  --line:#6a4b2a; --frame:#4a321c; --cell:48px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:radial-gradient(ellipse at top,#2a2118 0%,var(--bg) 60%);
+  color:var(--ink); font-family:"Segoe UI",system-ui,sans-serif; font-size:14px;
+}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid #3a2e22}
+header h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:24px;letter-spacing:1px;color:var(--gold2)}
+header h1 small{font-size:13px;color:var(--muted);font-family:"Segoe UI",sans-serif;letter-spacing:0;margin-left:10px}
+.runes{color:#7c6544;letter-spacing:6px;font-size:16px}
+.app{display:grid;grid-template-columns:290px 1fr 290px;gap:16px;padding:16px;align-items:start}
+@media (max-width:1100px){.app{grid-template-columns:1fr}.side{order:2}}
+.side{background:var(--panel);border:1px solid #3a2e22;border-radius:12px;padding:14px}
+.side h2{margin:0 0 10px;font-family:Georgia,serif;font-size:16px;color:var(--gold)}
+.side h3{margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+label{display:block;margin:6px 0 2px;color:var(--muted);font-size:12px}
+select,input[type=text]{width:100%;background:var(--panel2);color:var(--ink);border:1px solid #4a3b2b;border-radius:6px;padding:6px 8px;font-size:13px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0}
+.opt span{font-size:12px;color:var(--ink)}
+.opt select{width:150px}
+button{background:#3b2f22;color:var(--ink);border:1px solid #5c4830;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:13px}
+button:hover{background:#4a3a29}
+button.primary{background:linear-gradient(#c9963d,#a8772a);color:#1b130a;border-color:#e0b35c;font-weight:600}
+button.primary:hover{background:linear-gradient(#d8a44a,#b5822f)}
+button:disabled{opacity:.45;cursor:default}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.btns .wide{grid-column:1/-1}
+.vdesc{font-size:12px;color:var(--muted);line-height:1.45;margin-top:8px;font-style:italic}
+.center{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+.turnbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid #3a2e22;border-radius:999px;padding:6px 16px 6px 8px;font-size:15px}
+.turnbar .mini{width:26px;height:26px}
+.turnbar b{color:var(--gold2)}
+#endTurn{display:none}
+.frame{background:linear-gradient(135deg,#5a3d21,#3a2613);padding:14px;border-radius:14px;box-shadow:0 12px 40px #0009, inset 0 0 0 2px #7a5631}
+.board{display:grid;gap:2px;background:var(--line);border:2px solid #2b1c0e;border-radius:4px;user-select:none}
+.cell{width:var(--cell);height:var(--cell);position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  background:var(--wood1);background-image:linear-gradient(135deg,#ffffff10,#00000010)}
+.cell.alt{background-color:var(--wood2)}
+.cell.void{background:transparent;cursor:default;visibility:hidden}
+.board.hala{background:transparent;border-color:transparent}
+.board.hala .cell:not(.void){outline:2px solid var(--line)}
+.cell.throne{background:#a5793f;background-image:repeating-linear-gradient(45deg,#00000018 0 4px,transparent 4px 8px)}
+.cell.corner{background:#9b6e37;background-image:repeating-linear-gradient(45deg,#00000020 0 4px,transparent 4px 8px)}
+.cell.edgeesc{box-shadow:inset 0 0 0 2px #f3cf7a55}
+.cell.pen{background:#a9a46a;box-shadow:inset 0 0 0 3px #7ec8a0aa}
+.cell .mark{position:absolute;font-size:calc(var(--cell)*.5);color:#4a2f1499;font-family:serif;pointer-events:none}
+.cell .lbl{position:absolute;font-size:max(9px,calc(var(--cell)*.2));color:#4a2f14bb;pointer-events:none;font-weight:600}
+.cell .lbl.rk{top:1px;left:3px}
+.cell .lbl.fl{bottom:0;right:3px}
+.cell.lastfrom{box-shadow:inset 0 0 0 3px #ffe08a66}
+.cell.lastto{box-shadow:inset 0 0 0 3px #ffe08acc}
+.cell.sel{box-shadow:inset 0 0 0 3px #7fd3ff}
+.cell.target::after{content:"";width:28%;height:28%;border-radius:50%;background:#1c3a2a99;box-shadow:0 0 0 2px #8fe0b0aa;position:absolute}
+.cell.target.jump::after{background:#6a1a1088;box-shadow:0 0 0 2px #ff8a70}
+.cell.target:hover::after{background:#2c7a4fcc}
+.cell.boom{animation:boom .6s ease-out}
+@keyframes boom{0%{background:#ff7b4f}100%{}}
+.piece{width:80%;height:80%;border-radius:50%;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;
+  transition:transform .12s}
+.cell:hover .piece.mine{transform:translateY(-2px)}
+.piece.A{background:radial-gradient(circle at 35% 30%,#5b5550,#232022 55%,#0e0c0d);box-shadow:0 3px 4px #0008,inset 0 0 0 2px #7a3b2a}
+.piece.D{background:radial-gradient(circle at 35% 30%,#fffaf0,#e6d6b6 55%,#b8a07a);box-shadow:0 3px 4px #0008,inset 0 0 0 2px #8a6c40}
+.piece.K{background:radial-gradient(circle at 35% 30%,#fff7e0,#f0d48d 55%,#b8862e);box-shadow:0 3px 5px #000a,inset 0 0 0 3px #7a5413,0 0 0 2px #f3cf7a}
+.piece.K svg{width:62%;height:62%}
+.piece.K.dead{filter:grayscale(1) brightness(.6);box-shadow:0 0 0 3px var(--red)}
+.piece.F,.piece.S{font-size:calc(var(--cell)*.52);line-height:1}
+.piece.F{background:radial-gradient(circle at 35% 30%,#ffb46b,#d8692a 60%,#8a3a12);box-shadow:0 3px 4px #0008}
+.piece.S{background:radial-gradient(circle at 35% 30%,#ffffff,#e9e4da 60%,#a9a196);box-shadow:0 3px 4px #0008}
+.mini{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.mini.A{background:radial-gradient(circle at 35% 30%,#5b5550,#232022 55%,#0e0c0d);box-shadow:inset 0 0 0 2px #7a3b2a}
+.mini.D{background:radial-gradient(circle at 35% 30%,#fff7e0,#f0d48d 55%,#b8862e);box-shadow:inset 0 0 0 2px #7a5413}
+.mini.F{background:#d8692a;font-size:15px}
+.mini.S{background:#ece7dd;font-size:15px}
+.players .p{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;margin-bottom:6px;background:var(--panel2);border:1px solid transparent}
+.players .p.active{border-color:var(--gold);box-shadow:0 0 12px #d8a94a33}
+.players .p .mini{width:28px;height:28px}
+.players .p .info{flex:1;min-width:0}
+.players .p .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.players .p .sd{font-size:12px;color:var(--muted)}
+.players .p .cnt{font-size:12px;color:var(--muted);text-align:right}
+.hist{max-height:300px;overflow:auto;background:var(--panel2);border-radius:8px;padding:6px 8px;font-family:Consolas,monospace;font-size:12px}
+.hist table{width:100%;border-collapse:collapse}
+.hist td{padding:2px 4px;vertical-align:top}
+.hist td:first-child{color:var(--muted);width:28px}
+.score{display:flex;justify-content:space-between;background:var(--panel2);border-radius:8px;padding:8px 10px;font-size:13px}
+.score b{color:var(--gold2)}
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:10;padding:20px}
+.modal.show{display:flex}
+.modal .box{background:var(--panel);border:1px solid #5c4830;border-radius:14px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:22px 26px;box-shadow:0 20px 60px #000}
+.modal h2{font-family:Georgia,serif;color:var(--gold2);margin-top:0}
+.modal h3{color:var(--gold);font-family:Georgia,serif;margin:18px 0 6px}
+.modal p,.modal li{line-height:1.55;color:#e8dcc4}
+.modal .close{float:right}
+.win .box{text-align:center;max-width:440px}
+.win .big{font-size:56px;margin:4px 0}
+.win .btns{grid-template-columns:1fr 1fr}
+.hint{font-size:12px;color:var(--muted);text-align:center;max-width:620px}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:999px;background:#4a3a29;color:var(--gold2);margin-left:4px;font-style:normal}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tafl <small>Les échecs vikings — mode duo</small></h1>
+  <div class="runes">ᚺᚾᛖᚠᚨᛏᚨᚠᛚ</div>
+</header>
+
+<div class="app">
+  <!-- Panneau gauche : configuration -->
+  <aside class="side">
+    <h2>Partie</h2>
+    <label for="variant">Variante</label>
+    <select id="variant"></select>
+    <div class="vdesc" id="vdesc"></div>
+
+    <h3>Joueurs</h3>
+    <label for="name1">Joueur 1</label>
+    <input type="text" id="name1" value="Joueur 1" maxlength="20">
+    <label for="name2">Joueur 2</label>
+    <input type="text" id="name2" value="Joueur 2" maxlength="20">
+
+    <h3>Règles <span class="tag" id="customTag" style="display:none">personnalisées</span></h3>
+    <div id="taflOpts">
+      <div class="opt"><span>Qui commence</span>
+        <select data-k="first"><option value="A">Attaquants</option><option value="D">Défenseurs</option></select></div>
+      <div class="opt"><span>Fuite du roi</span>
+        <select data-k="escape"><option value="corner">Coins (forteresses)</option><option value="edge">N'importe quel bord</option></select></div>
+      <div class="opt"><span>Capture du roi</span>
+        <select data-k="kingCapture"><option value="four">4 côtés</option><option value="two">2 côtés (pris en tenaille)</option><option value="hybrid">2 côtés, 4 près du trône</option></select></div>
+      <div class="opt"><span>Bord hostile au roi</span>
+        <select data-k="edgeHostile"><option value="true">Oui (3 suffisent au bord)</option><option value="false">Non (roi imprenable au bord)</option></select></div>
+      <div class="opt"><span>Roi armé</span>
+        <select data-k="kingArmed"><option value="true">Oui (il capture)</option><option value="false">Non</option></select></div>
+      <div class="opt"><span>Trône vide hostile aux défenseurs</span>
+        <select data-k="throneHostileDef"><option value="true">Oui</option><option value="false">Non</option></select></div>
+      <div class="opt"><span>Traverser le trône vide</span>
+        <select data-k="passThrone"><option value="true">Autorisé</option><option value="false">Interdit</option></select></div>
+      <div class="opt"><span>Encerclement total</span>
+        <select data-k="encircle"><option value="true">Victoire attaquants</option><option value="false">Sans effet</option></select></div>
+      <div class="opt"><span>Triple répétition</span>
+        <select data-k="repetition"><option value="draw">Partie nulle</option><option value="loseD">Défaite des défenseurs</option><option value="off">Ignorée</option></select></div>
+    </div>
+    <div id="halaOpts" style="display:none">
+      <div class="opt"><span>Forces</span>
+        <select data-k="halaMode"><option value="2f20">2 renards / 20 moutons</option><option value="1f13">1 renard / 13 moutons</option></select></div>
+      <div class="opt"><span>Prise obligatoire</span>
+        <select data-k="forcedCapture"><option value="false">Non</option><option value="true">Oui</option></select></div>
+    </div>
+
+    <div class="btns">
+      <button class="primary wide" id="newBtn">⚔ Nouvelle partie</button>
+      <button id="resetRules">Règles d'origine</button>
+      <button id="rulesBtn">📜 Règles</button>
+    </div>
+  </aside>
+
+  <!-- Centre : plateau -->
+  <main class="center">
+    <div class="turnbar"><span class="mini" id="turnPiece"></span><span id="turnText"></span>
+      <button id="endTurn">Terminer le tour</button></div>
+    <div class="frame"><div class="board" id="board"></div></div>
+    <div class="hint" id="hint"></div>
+  </main>
+
+  <!-- Panneau droit : suivi -->
+  <aside class="side">
+    <h2>Combattants</h2>
+    <div class="players" id="players"></div>
+    <div class="btns">
+      <button id="undoBtn">↶ Annuler</button>
+      <button id="resignBtn">🏳 Abandonner</button>
+      <button id="soundBtn" class="wide">🔊 Son activé</button>
+    </div>
+    <h3>Historique des coups</h3>
+    <div class="hist" id="hist"></div>
+    <h3>Score de la séance</h3>
+    <div class="score" id="score"></div>
+    <div class="btns"><button class="wide" id="resetScore">Remettre le score à zéro</button></div>
+  </aside>
+</div>
+
+<!-- Fenêtre des règles -->
+<div class="modal" id="rulesModal"><div class="box">
+  <button class="close" data-close>✕</button>
+  <div id="rulesContent"></div>
+</div></div>
+
+<!-- Fenêtre de fin de partie -->
+<div class="modal win" id="winModal"><div class="box">
+  <div class="big" id="winIcon">🏆</div>
+  <h2 id="winTitle"></h2>
+  <p id="winReason"></p>
+  <div class="btns">
+    <button class="primary" id="rematchSwap">Revanche (camps inversés)</button>
+    <button id="rematch">Revanche (mêmes camps)</button>
+    <button class="wide" data-close>Voir le plateau</button>
+  </div>
+</div></div>
+
+<script>
+'use strict';
+/* =========================================================================
+   Données : variantes
+   ========================================================================= */
+const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+const FILES = 'abcdefghijklmnopqrs';
+const SIDE_LABEL = {A:'Attaquants', D:'Défenseurs', S:'Moutons', F:'Renards'};
+const SIDE_SING = {A:'les attaquants', D:'les défenseurs', S:'les moutons', F:'les renards'};
+
+const L_HNEF11 = [
+  '...AAAAA...',
+  '.....A.....',
+  '...........',
+  'A....D....A',
+  'A...DDD...A',
+  'AA.DDKDD.AA',
+  'A...DDD...A',
+  'A....D....A',
+  '...........',
+  '.....A.....',
+  '...AAAAA...'];
+const L_HNEF13 = [
+  '....AAAAA....',
+  '......A......',
+  '.............',
+  '......D......',
+  'A.....D.....A',
+  'A.....D.....A',
+  'AA.DDDKDDD.AA',
+  'A.....D.....A',
+  'A.....D.....A',
+  '......D......',
+  '.............',
+  '......A......',
+  '....AAAAA....'];
+const L_TAWL = [
+  '....AAA....',
+  '....A.A....',
+  '.....A.....',
+  '.....D.....',
+  'AA..DDD..AA',
+  'A.ADDKDDA.A',
+  'AA..DDD..AA',
+  '.....D.....',
+  '.....A.....',
+  '....A.A....',
+  '....AAA....'];
+const L_TABLUT = [
+  '...AAA...',
+  '....A....',
+  '....D....',
+  'A...D...A',
+  'AADDKDDAA',
+  'A...D...A',
+  '....D....',
+  '....A....',
+  '...AAA...'];
+const L_BRANDUBH = [
+  '...A...',
+  '...A...',
+  '...D...',
+  'AADKDAA',
+  '...D...',
+  '...A...',
+  '...A...'];
+const L_ARDRI = [
+  '..AAA..',
+  '...A...',
+  'A.DDD.A',
+  'AADKDAA',
+  'A.DDD.A',
+  '...A...',
+  '..AAA..'];
+
+// Alea evangelii : 19×19, 48 attaquants contre 24 défenseurs + roi, généré par symétrie de rotation
+function genAlea(){
+  const N = 19, g = [...Array(N)].map(() => Array(N).fill('.'));
+  const put = (r,c,ch) => { let p=[r,c]; for(let i=0;i<4;i++){ g[p[0]][p[1]] = ch; p = [p[1], N-1-p[0]]; } };
+  for(let c=6;c<=12;c++) put(0,c,'A');
+  put(1,7,'A'); put(1,9,'A'); put(1,11,'A'); put(2,4,'A'); put(2,14,'A');
+  for(const r of [6,7,8]) put(r,9,'D');
+  put(8,8,'D'); put(7,8,'D'); put(7,10,'D');
+  g[9][9] = 'K';
+  return g.map(r => r.join(''));
+}
+
+const HALA_LAYOUTS = {
+  '2f20': ['##...##','##F.F##','.......','SSSSSSS','SSSSSSS','##SSS##','##SSS##'],
+  '1f13': ['##...##','##.F.##','.......','.......','SSSSSSS','##SSS##','##SSS##'],
+};
+
+const R = (o) => Object.assign({first:'A', escape:'corner', kingCapture:'four', edgeHostile:true, kingArmed:true,
+  throneHostileDef:true, passThrone:true, encircle:false, repetition:'draw'}, o);
+
+const VARIANTS = [
+  {id:'hnef11', name:'Hnefatafl 11×11 (règles classiques)', type:'tafl', layout:L_HNEF11,
+   rules:R({encircle:true}),
+   desc:"Le grand jeu des Vikings, tel que décrit sur Wikipédia : 24 attaquants contre le roi et ses 12 défenseurs. Le roi doit gagner l'une des quatre forteresses d'angle ; au bord du plateau, trois attaquants suffisent à le prendre."},
+  {id:'copen11', name:'Hnefatafl 11×11 (Copenhague)', type:'tafl', layout:L_HNEF11,
+   rules:R({edgeHostile:false, encircle:true, repetition:'loseD'}),
+   desc:"Règles de tournoi modernes (Fédération mondiale de tafl). Le roi est imprenable lorsqu'il longe un bord ; l'encerclement complet des défenseurs fait gagner les attaquants, et la répétition perpétuelle est perdue par les défenseurs."},
+  {id:'fetlar11', name:'Hnefatafl 11×11 (Fetlar)', type:'tafl', layout:L_HNEF11,
+   rules:R({edgeHostile:false, passThrone:false}),
+   desc:"Variante de la Fetlar Hnefatafl Panel (îles Shetland, 2008) : le roi doit être entouré sur ses quatre côtés et ne peut pas être pris sur un bord ; seul le roi peut se poser sur le trône ou le traverser."},
+  {id:'hnef13', name:'Hnefatafl 13×13', type:'tafl', layout:L_HNEF13,
+   rules:R({encircle:true}),
+   desc:"Le hnefatafl sur un plateau agrandi de 13×13 cases, plus ouvert et plus stratégique : 24 attaquants contre 12 défenseurs et leur roi, fuite par les angles."},
+  {id:'tablut', name:'Tablut 9×9 (Laponie)', type:'tafl', layout:L_TABLUT,
+   rules:R({escape:'edge', kingCapture:'hybrid', throneHostileDef:false, passThrone:false}),
+   desc:"Noté par Linné en 1732 chez les Samis de Laponie suédoise : les « Suédois » (le roi et 8 défenseurs) affrontent 16 « Moscovites ». Le roi gagne dès qu'il touche un bord ; loin du trône, deux ennemis suffisent à le prendre."},
+  {id:'tawl', name:'Tawl-bwrdd 11×11 (Pays de Galles)', type:'tafl', layout:L_TAWL,
+   rules:R({escape:'edge', throneHostileDef:false, passThrone:false}),
+   desc:"Le jeu gallois décrit par Robert ap Ifan dans un manuscrit de 1587. Disposition en losange ; le roi s'échappe en atteignant n'importe quel bord, mais doit être cerné sur quatre côtés pour tomber."},
+  {id:'brandubh', name:'Brandubh 7×7 (Irlande)', type:'tafl', layout:L_BRANDUBH,
+   rules:R({kingCapture:'hybrid'}),
+   desc:"« Corbeau noir » : le tafl irlandais, cité dans les poèmes épiques. Partie courte et tranchante : 8 attaquants contre le roi (le « branan ») et 4 défenseurs, fuite par les angles, roi pris à deux hors du voisinage du trône."},
+  {id:'ardri', name:'Ard-Rí 7×7 (Écosse)', type:'tafl', layout:L_ARDRI,
+   rules:R({}),
+   desc:"« Le Haut Roi » écossais : 16 attaquants serrent le roi et ses 8 défenseurs sur un petit plateau de 7×7. Reconstitution : fuite par les angles, roi pris sur quatre côtés (trois au bord)."},
+  {id:'alea', name:'Alea evangelii 19×19 (Angleterre)', type:'tafl', gen:genAlea,
+   rules:R({}),
+   desc:"« Le jeu des Évangiles », joué à la cour d'Æthelstan et décrit dans une allégorie anglo-saxonne. Gigantesque : 48 attaquants contre 24 défenseurs et le roi sur 19×19. Disposition reconstituée."},
+  {id:'gwydd', name:'Gwyddbwyll 9×9 (Bretons)', type:'tafl', layout:L_TABLUT,
+   rules:R({kingCapture:'hybrid', kingArmed:false}),
+   desc:"Le « bois de sens » du monde brittonique, cousin du fidchell. Les règles d'origine sont perdues : reconstitution libre sur 9×9 avec fuite par les angles et un roi désarmé, plus vulnérable loin de son trône."},
+  {id:'fidchell', name:'Fidchell 7×7 (Irlande)', type:'tafl', layout:L_ARDRI,
+   rules:R({escape:'edge', throneHostileDef:false}),
+   desc:"La « sagesse du bois » des légendes irlandaises, sur 7×7. Règles perdues : reconstitution libre où le roi, entouré de 8 défenseurs, cherche à rejoindre n'importe quel bord face à 16 attaquants."},
+  {id:'hala', name:'Halatafl (Renard et moutons)', type:'hala',
+   rules:{halaMode:'2f20', forcedCapture:'false'},
+   desc:"Le « tafl de la queue », attesté dès le XIVᵉ siècle et ancêtre du jeu du renard et des oies. Deux renards tentent de dévorer les moutons, qui doivent remplir l'enclos (les 9 cases du haut)."},
+];
+const V = id => VARIANTS.find(v => v.id === id);
+
+/* =========================================================================
+   État
+   ========================================================================= */
+let state = null;
+let sel = null;          // case sélectionnée [r,c]
+let targets = [];        // coups possibles depuis sel
+let sound = true;
+let score = {p0:0, p1:0, draws:0};
+
+const sideOf = p => p==='A' ? 'A' : (p==='D'||p==='K') ? 'D' : p==='S' ? 'S' : p==='F' ? 'F' : null;
+const other = s => ({A:'D', D:'A', S:'F', F:'S'})[s];
+const sq = (r,c) => FILES[c] + (state.N - r);
+const inB = (s,r,c) => r>=0 && c>=0 && r<s.N && c<s.N && s.board[r][c] !== '#';
+const center = s => (s.N-1)/2;
+const isThrone = (s,r,c) => s.type==='tafl' && r===center(s) && c===center(s);
+const isCornerCell = (s,r,c) => (r===0||r===s.N-1) && (c===0||c===s.N-1);
+const isCornerR = (s,r,c) => s.type==='tafl' && s.rules.escape==='corner' && isCornerCell(s,r,c);
+const isEdge = (s,r,c) => r===0||c===0||r===s.N-1||c===s.N-1;
+const isEscape = (s,r,c) => s.rules.escape==='corner' ? isCornerCell(s,r,c) : isEdge(s,r,c);
+const isPen = (s,r,c) => s.type==='hala' && r<=2 && c>=2 && c<=4;
+const hash = s => s.board.map(r=>r.join('')).join('/') + s.turn;
+
+function playerOf(side){ // indice du joueur (0/1) qui contrôle ce camp
+  const firstSide = state.sides[0];
+  return (side===firstSide) !== state.swap ? 0 : 1;
+}
+function nameOf(i){ return (document.getElementById('name'+(i+1)).value.trim() || ('Joueur '+(i+1))); }
+
+/* =========================================================================
+   Moteur : tafl
+   ========================================================================= */
+function taflMoves(s,r,c){
+  const isK = s.board[r][c]==='K', res = [];
+  for(const [dr,dc] of DIRS){
+    let i=r+dr, j=c+dc;
+    while(inB(s,i,j) && s.board[i][j]==='.'){
+      const restricted = isThrone(s,i,j) || isCornerR(s,i,j);
+      if(restricted && !isK){
+        if(isThrone(s,i,j) && s.rules.passThrone){ i+=dr; j+=dc; continue; }
+        break;
+      }
+      res.push({to:[i,j]});
+      i+=dr; j+=dc;
+    }
+  }
+  return res;
+}
+
+// La case (i,j) est-elle hostile à une pièce du camp `victim`, pour une capture faite par `mover` ?
+function hostile(s,i,j,mover,victim){
+  if(!inB(s,i,j)) return false;
+  const q = s.board[i][j];
+  if(q!=='.'){
+    if(sideOf(q)!==mover) return false;
+    if(q==='K') return s.rules.kingArmed || (victim==='A' && isThrone(s,i,j));
+    return true;
+  }
+  if(isCornerR(s,i,j)) return true;
+  if(isThrone(s,i,j)) return victim==='A' || s.rules.throneHostileDef;
+  return false;
+}
+
+function kingTaken(s,kr,kc,mr,mc){
+  let mode = s.rules.kingCapture;
+  const nearThrone = isThrone(s,kr,kc) || DIRS.some(([dr,dc]) => isThrone(s,kr+dr,kc+dc));
+  if(mode==='hybrid') mode = nearThrone ? 'four' : 'two';
+  const kh = (i,j,edgeCounts) => {
+    if(i<0||j<0||i>=s.N||j>=s.N) return edgeCounts && s.rules.edgeHostile;
+    const q = s.board[i][j];
+    if(q==='A') return true;
+    if(q==='.') return isCornerR(s,i,j) || isThrone(s,i,j);
+    return false;
+  };
+  if(mode==='four') return DIRS.every(([dr,dc]) => kh(kr+dr,kc+dc,true));
+  // deux côtés : tenaille dans l'axe de l'attaquant qui vient de bouger
+  const dr = kr-mr, dc = kc-mc;
+  return kh(kr+dr,kc+dc,false);
+}
+
+function encircled(s){
+  const seen = new Set(), stack = [];
+  for(let r=0;r<s.N;r++) for(let c=0;c<s.N;c++) if(sideOf(s.board[r][c])==='D'){ stack.push([r,c]); seen.add(r*s.N+c); }
+  while(stack.length){
+    const [r,c] = stack.pop();
+    if(isEdge(s,r,c)) return false;
+    for(const [dr,dc] of DIRS){
+      const i=r+dr, j=c+dc, k=i*s.N+j;
+      if(inB(s,i,j) && !seen.has(k) && s.board[i][j]!=='A'){ seen.add(k); stack.push([i,j]); }
+    }
+  }
+  return true;
+}
+
+function taflPlay(from,to){
+  const s = state, b = s.board, [fr,fc] = from, [tr,tc] = to;
+  const p = b[fr][fc], side = sideOf(p);
+  b[tr][tc] = p; b[fr][fc] = '.';
+  const caps = [];
+  if(p!=='K' || s.rules.kingArmed){
+    for(const [dr,dc] of DIRS){
+      const ni=tr+dr, nj=tc+dc;
+      if(!inB(s,ni,nj)) continue;
+      const q = b[ni][nj];
+      if(q==='.' || q==='K' || sideOf(q)===side) continue;
+      if(hostile(s,ni+dr,nj+dc,side,sideOf(q))) caps.push([ni,nj]);
+    }
+  }
+  for(const [r,c] of caps){ s.captured[sideOf(b[r][c])]++; b[r][c]='.'; }
+  let note = sq(fr,fc)+'–'+sq(tr,tc) + caps.map(([r,c])=>'×'+sq(r,c)).join('');
+  let win = null;
+  if(side==='A'){
+    for(const [dr,dc] of DIRS){
+      const ki=tr+dr, kj=tc+dc;
+      if(inB(s,ki,kj) && b[ki][kj]==='K' && kingTaken(s,ki,kj,tr,tc)){
+        s.kingDead = [ki,kj]; note += ' ♚×';
+        win = {winner:'A', reason:'Le roi est capturé !'};
+      }
+    }
+  }
+  if(!win && p==='K' && isEscape(s,tr,tc))
+    win = {winner:'D', reason: s.rules.escape==='corner' ? "Le roi s'est réfugié dans une forteresse d'angle !" : "Le roi a atteint le bord du plateau et s'est enfui !"};
+  if(!win && side==='A' && s.rules.encircle && encircled(s))
+    win = {winner:'A', reason:'Les défenseurs sont entièrement encerclés.'};
+  s.history.push({side, note});
+  s.last = {from, to}; s.lastCaps = caps;
+  finishTurn(side, win, caps.length);
+}
+
+/* =========================================================================
+   Moteur : halatafl
+   ========================================================================= */
+function halaJumps(s,r,c){
+  const res = [];
+  for(const [dr,dc] of DIRS){
+    const ni=r+dr, nj=c+dc, ji=r+2*dr, jj=c+2*dc;
+    if(inB(s,ni,nj) && s.board[ni][nj]==='S' && inB(s,ji,jj) && s.board[ji][jj]==='.')
+      res.push({to:[ji,jj], cap:[ni,nj]});
+  }
+  return res;
+}
+function halaMoves(s,r,c){
+  const p = s.board[r][c], res = [];
+  if(p==='S'){
+    for(const [dr,dc] of [[-1,0],[0,-1],[0,1]]){
+      const i=r+dr, j=c+dc;
+      if(inB(s,i,j) && s.board[i][j]==='.') res.push({to:[i,j]});
+    }
+  } else if(p==='F'){
+    if(s.chain) return (s.chain[0]===r && s.chain[1]===c) ? halaJumps(s,r,c) : [];
+    const jumps = halaJumps(s,r,c);
+    if(s.rules.forcedCapture==='true' && anyFoxJump(s)) return jumps;
+    for(const [dr,dc] of DIRS){
+      const i=r+dr, j=c+dc;
+      if(inB(s,i,j) && s.board[i][j]==='.') res.push({to:[i,j]});
+    }
+    res.push(...jumps);
+  }
+  return res;
+}
+function anyFoxJump(s){
+  for(let r=0;r<s.N;r++) for(let c=0;c<s.N;c++) if(s.board[r][c]==='F' && halaJumps(s,r,c).length) return true;
+  return false;
+}
+function halaPlay(from,to){
+  const s = state, b = s.board, [fr,fc] = from, [tr,tc] = to;
+  const mv = halaMoves(s,fr,fc).find(m => m.to[0]===tr && m.to[1]===tc);
+  const p = b[fr][fc], side = sideOf(p);
+  b[tr][tc] = p; b[fr][fc] = '.';
+  const caps = [];
+  if(mv && mv.cap){ const [cr,cc] = mv.cap; b[cr][cc] = '.'; s.captured.S++; caps.push(mv.cap); }
+  if(s.chain) s.history[s.history.length-1].note += '×' + sq(tr,tc);
+  else s.history.push({side, note: sq(fr,fc) + (caps.length ? '×' : '–') + sq(tr,tc)});
+  s.last = {from, to}; s.lastCaps = caps;
+  const win = halaWin(s);
+  if(!win && caps.length && halaJumps(s,tr,tc).length){ s.chain = [tr,tc]; return; }
+  s.chain = null;
+  finishTurn(side, win, caps.length);
+}
+function halaWin(s){
+  let sheep = 0, pen = 0;
+  for(let r=0;r<s.N;r++) for(let c=0;c<s.N;c++) if(s.board[r][c]==='S'){ sheep++; if(isPen(s,r,c)) pen++; }
+  if(pen===9) return {winner:'S', reason:"Les moutons ont rempli l'enclos !"};
+  if(sheep<9) return {winner:'F', reason:"Il ne reste plus assez de moutons pour remplir l'enclos."};
+  return null;
+}
+function endChain(){
+  if(!state.chain) return;
+  pushUndo();
+  state.chain = null;
+  finishTurn('F', halaWin(state), 0);
+  render(); save();
+}
+
+/* =========================================================================
+   Tour, fin de partie
+   ========================================================================= */
+function movesOf(s,r,c){ return s.type==='tafl' ? taflMoves(s,r,c) : halaMoves(s,r,c); }
+function hasMoves(s,side){
+  for(let r=0;r<s.N;r++) for(let c=0;c<s.N;c++)
+    if(sideOf(s.board[r][c])===side && movesOf(s,r,c).length) return true;
+  return false;
+}
+function finishTurn(side, win, ncaps){
+  const s = state;
+  if(!win){
+    s.turn = other(side);
+    if(s.type==='tafl' && s.rules.repetition!=='off'){
+      const h = hash(s); s.rep[h] = (s.rep[h]||0) + 1;
+      if(s.rep[h]>=3){
+        win = s.rules.repetition==='draw'
+          ? {winner:null, reason:'La même position est apparue trois fois : partie nulle.'}
+          : {winner:'A', reason:'Répétition perpétuelle : les défenseurs perdent.'};
+      }
+    }
+  }
+  if(!win && !hasMoves(s,s.turn))
+    win = {winner:side, reason:`${SIDE_LABEL[s.turn]} : plus aucun coup possible.`};
+  if(win) endGame(win);
+  else beep(ncaps ? 'cap' : 'move');
+}
+function endGame(win){
+  state.over = win;
+  if(win.winner===null) score.draws++;
+  else score['p'+playerOf(win.winner)]++;
+  saveScore();
+  beep('win');
+  setTimeout(showWin, 350);
+}
+function showWin(){
+  const w = state.over; if(!w) return;
+  document.getElementById('winIcon').textContent = w.winner===null ? '🤝' : (w.winner==='D' ? '👑' : w.winner==='A' ? '⚔️' : w.winner==='F' ? '🦊' : '🐑');
+  document.getElementById('winTitle').textContent = w.winner===null ? 'Match nul' :
+    `Victoire de ${nameOf(playerOf(w.winner))} (${SIDE_LABEL[w.winner]})`;
+  document.getElementById('winReason').textContent = w.reason;
+  document.getElementById('winModal').classList.add('show');
+}
+
+/* =========================================================================
+   Partie : création, annulation, sauvegarde
+   ========================================================================= */
+function readRules(type){
+  const box = document.getElementById(type==='tafl' ? 'taflOpts' : 'halaOpts');
+  const r = {};
+  box.querySelectorAll('select[data-k]').forEach(sl => {
+    const v = sl.value; r[sl.dataset.k] = v==='true' ? true : v==='false' ? false : v;
+  });
+  if(type==='hala') r.forcedCapture = String(r.forcedCapture);
+  return r;
+}
+function writeRules(type, rules){
+  const box = document.getElementById(type==='tafl' ? 'taflOpts' : 'halaOpts');
+  box.querySelectorAll('select[data-k]').forEach(sl => { sl.value = String(rules[sl.dataset.k]); });
+  updateCustomTag();
+}
+function updateCustomTag(){
+  const v = V(document.getElementById('variant').value);
+  const cur = readRules(v.type);
+  const differs = Object.keys(cur).some(k => String(cur[k]) !== String(v.rules[k]));
+  document.getElementById('customTag').style.display = differs ? '' : 'none';
+}
+function newGame(swap=false){
+  const v = V(document.getElementById('variant').value);
+  const rules = readRules(v.type);
+  const layout = v.type==='hala' ? HALA_LAYOUTS[rules.halaMode] : (v.gen ? v.gen() : v.layout);
+  state = {
+    vid:v.id, type:v.type, rules, N:layout.length,
+    board: layout.map(row => row.split('')),
+    sides: v.type==='hala' ? ['S','F'] : ['A','D'],
+    turn: v.type==='hala' ? 'S' : rules.first,
+    history:[], undo:[], rep:{}, last:null, lastCaps:[], over:null, chain:null, kingDead:null,
+    captured:{A:0,D:0,S:0,F:0}, swap,
+  };
+  state.rep[hash(state)] = 1;
+  sel = null; targets = [];
+  document.getElementById('winModal').classList.remove('show');
+  render(); save();
+}
+function pushUndo(){
+  const {undo, ...rest} = state;
+  state.undo.push(JSON.stringify(rest));
+  if(state.undo.length > 500) state.undo.shift();
+}
+function undo(){
+  if(!state.undo.length) return;
+  if(state.over){ // on retire le résultat du score
+    const w = state.over;
+    if(w.winner===null) score.draws = Math.max(0, score.draws-1);
+    else { const k = 'p'+playerOf(w.winner); score[k] = Math.max(0, score[k]-1); }
+    saveScore();
+  }
+  const prev = JSON.parse(state.undo.pop());
+  state = Object.assign(prev, {undo: state.undo});
+  sel = null; targets = [];
+  restoreChainSel();
+  document.getElementById('winModal').classList.remove('show');
+  render(); save();
+}
+function restoreChainSel(){ if(state.chain){ sel = state.chain; targets = halaMoves(state, ...sel); } }
+function resign(){
+  if(!state || state.over) return;
+  const loser = state.turn;
+  if(!confirm(`${nameOf(playerOf(loser))} (${SIDE_LABEL[loser]}) abandonne la partie ?`)) return;
+  pushUndo();
+  endGame({winner: other(loser), reason:`${nameOf(playerOf(loser))} a abandonné.`});
+  render(); save();
+}
+function save(){
+  try{
+    localStorage.setItem('tafl-save', JSON.stringify({state, n1:nameOf(0), n2:nameOf(1), sound}));
+  }catch(e){}
+}
+function saveScore(){ try{ localStorage.setItem('tafl-score', JSON.stringify(score)); }catch(e){} renderScore(); }
+function load(){
+  try{
+    const sc = JSON.parse(localStorage.getItem('tafl-score')||'null'); if(sc) score = sc;
+    const d = JSON.parse(localStorage.getItem('tafl-save')||'null');
+    if(d && d.state && V(d.state.vid)){
+      document.getElementById('name1').value = d.n1; document.getElementById('name2').value = d.n2;
+      sound = d.sound !== false;
+      state = d.state;
+      document.getElementById('variant').value = state.vid;
+      writeRules(state.type, state.rules);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* =========================================================================
+   Interaction
+   ========================================================================= */
+function onCellClick(r,c){
+  if(!state || state.over) return;
+  const t = targets.find(m => m.to[0]===r && m.to[1]===c);
+  if(sel && t){
+    pushUndo();
+    const from = sel;
+    sel = null; targets = [];
+    if(state.type==='tafl') taflPlay(from,[r,c]); else halaPlay(from,[r,c]);
+    if(state.chain){ sel = state.chain; targets = halaMoves(state, ...sel); beep('cap'); }
+    render(); save();
+    return;
+  }
+  if(state.chain) return;
+  const p = state.board[r][c];
+  if(sideOf(p)===state.turn && !(sel && sel[0]===r && sel[1]===c)){
+    sel = [r,c]; targets = movesOf(state,r,c);
+  } else { sel = null; targets = []; }
+  render();
+}
+
+/* =========================================================================
+   Rendu
+   ========================================================================= */
+const CROWN = '<svg viewBox="0 0 24 24"><path d="M3 18.5h18l-1.6-10-4.6 4.2L12 5l-2.8 7.7L4.6 8.5z" fill="#d8a94a" stroke="#5e3f0c" stroke-width="1.2" stroke-linejoin="round"/><rect x="3" y="19.5" width="18" height="2" rx="1" fill="#5e3f0c"/></svg>';
+function pieceHTML(p, extra=''){
+  if(p==='A') return `<div class="piece A ${extra}"></div>`;
+  if(p==='D') return `<div class="piece D ${extra}"></div>`;
+  if(p==='K') return `<div class="piece K ${extra}">${CROWN}</div>`;
+  if(p==='F') return `<div class="piece F ${extra}">🦊</div>`;
+  if(p==='S') return `<div class="piece S ${extra}">🐑</div>`;
+  return '';
+}
+function sizeBoard(){
+  if(!state) return;
+  const wrap = document.querySelector('.center');
+  const avail = Math.min(window.innerHeight - 190, wrap.clientWidth - 40);
+  const cell = Math.max(22, Math.min(68, Math.floor((avail - state.N*2) / state.N)));
+  document.documentElement.style.setProperty('--cell', cell+'px');
+}
+function render(){
+  const s = state, el = document.getElementById('board');
+  el.classList.toggle('hala', s.type==='hala');
+  el.style.gridTemplateColumns = `repeat(${s.N}, var(--cell))`;
+  sizeBoard();
+  let html = '';
+  for(let r=0;r<s.N;r++) for(let c=0;c<s.N;c++){
+    const p = s.board[r][c];
+    if(p==='#'){ html += '<div class="cell void"></div>'; continue; }
+    const cls = ['cell'];
+    if((r+c)%2) cls.push('alt');
+    if(isThrone(s,r,c)) cls.push('throne');
+    if(isCornerR(s,r,c)) cls.push('corner');
+    if(s.type==='tafl' && s.rules.escape==='edge' && isEdge(s,r,c)) cls.push('edgeesc');
+    if(isPen(s,r,c)) cls.push('pen');
+    if(s.last && s.last.from[0]===r && s.last.from[1]===c) cls.push('lastfrom');
+    if(s.last && s.last.to[0]===r && s.last.to[1]===c) cls.push('lastto');
+    if(sel && sel[0]===r && sel[1]===c) cls.push('sel');
+    const t = targets.find(m => m.to[0]===r && m.to[1]===c);
+    if(t){ cls.push('target'); if(t.cap) cls.push('jump'); }
+    if(s.lastCaps.some(([i,j]) => i===r && j===c)) cls.push('boom');
+    let inner = '';
+    if(isThrone(s,r,c) && p==='.') inner += '<span class="mark">ᛟ</span>';
+    if(isCornerR(s,r,c) && p==='.') inner += '<span class="mark">ᛉ</span>';
+    if(c===0 || s.board[r][c-1]==='#') inner += `<span class="lbl rk">${s.N-r}</span>`;
+    if(r===s.N-1 || s.board[r+1][c]==='#') inner += `<span class="lbl fl">${FILES[c]}</span>`;
+    let extra = sideOf(p)===s.turn && !s.over ? 'mine' : '';
+    if(p==='K' && s.kingDead && s.kingDead[0]===r && s.kingDead[1]===c) extra += ' dead';
+    inner += pieceHTML(p, extra);
+    html += `<div class="${cls.join(' ')}" data-r="${r}" data-c="${c}">${inner}</div>`;
+  }
+  el.innerHTML = html;
+  // Barre de tour
+  const tp = document.getElementById('turnPiece');
+  tp.className = 'mini ' + s.turn;
+  tp.textContent = s.turn==='F' ? '🦊' : s.turn==='S' ? '🐑' : '';
+  const turnText = document.getElementById('turnText');
+  if(s.over) turnText.innerHTML = s.over.winner===null ? '<b>Partie nulle</b>' :
+    `<b>${esc(nameOf(playerOf(s.over.winner)))}</b> a gagné (${SIDE_LABEL[s.over.winner]})`;
+  else turnText.innerHTML = `Au tour de <b>${esc(nameOf(playerOf(s.turn)))}</b> — ${SIDE_LABEL[s.turn]}` +
+    (s.chain ? ' · prise en chaîne' : '');
+  document.getElementById('endTurn').style.display = s.chain && !s.over ? 'inline-block' : 'none';
+  // Joueurs
+  let ph = '';
+  for(const side of s.sides){
+    const pi = playerOf(side), lost = s.captured[side];
+    const icon = side==='F' ? '🦊' : side==='S' ? '🐑' : '';
+    ph += `<div class="p ${s.turn===side && !s.over ? 'active':''}"><span class="mini ${side}">${icon}</span>
+      <div class="info"><div class="nm">${esc(nameOf(pi))}</div><div class="sd">${SIDE_LABEL[side]} · ${countSide(side)} pièces</div></div>
+      <div class="cnt">${lost} perdue${lost>1?'s':''}</div></div>`;
+  }
+  document.getElementById('players').innerHTML = ph;
+  // Historique
+  let hh = '<table>';
+  for(let i=0;i<s.history.length;i+=2){
+    hh += `<tr><td>${i/2+1}.</td><td>${s.history[i].note}</td><td>${s.history[i+1] ? s.history[i+1].note : ''}</td></tr>`;
+  }
+  hh += '</table>';
+  const hist = document.getElementById('hist');
+  hist.innerHTML = s.history.length ? hh : '<span style="color:var(--muted)">Aucun coup joué.</span>';
+  hist.scrollTop = hist.scrollHeight;
+  document.getElementById('undoBtn').disabled = !s.undo.length;
+  document.getElementById('resignBtn').disabled = !!s.over;
+  document.getElementById('soundBtn').textContent = sound ? '🔊 Son activé' : '🔇 Son coupé';
+  document.getElementById('hint').textContent = s.type==='tafl'
+    ? `Cliquez sur une de vos pièces puis sur une case marquée. Les pièces se déplacent comme la tour aux échecs. ${s.rules.escape==='corner' ? 'Le roi gagne en atteignant un angle (ᛉ).' : 'Le roi gagne en atteignant un bord (cases dorées).'}`
+    : `Moutons : un pas vers le haut ou sur le côté. Renards : un pas dans n'importe quelle direction, ou saut par-dessus un mouton pour le manger (sauts enchaînés possibles). Enclos : cases vertes du haut.`;
+  renderScore();
+}
+function countSide(side){
+  let n = 0;
+  for(const row of state.board) for(const p of row) if(sideOf(p)===side) n++;
+  return n;
+}
+function renderScore(){
+  document.getElementById('score').innerHTML =
+    `<span>${esc(nameOf(0))} <b>${score.p0}</b></span><span>Nulles <b>${score.draws}</b></span><span>${esc(nameOf(1))} <b>${score.p1}</b></span>`;
+}
+const esc = t => t.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[ch]);
+
+/* =========================================================================
+   Règles (texte)
+   ========================================================================= */
+function describeTafl(r){
+  const li = [];
+  li.push(`<b>${r.first==='A' ? 'Les attaquants' : 'Les défenseurs'}</b> jouent en premier.`);
+  li.push(r.escape==='corner'
+    ? "Le roi gagne en atteignant l'une des <b>quatre cases d'angle</b> (forteresses). Seul le roi peut s'y poser."
+    : "Le roi gagne en atteignant <b>n'importe quelle case du bord</b>.");
+  const kc = {four:"Le roi est pris lorsqu'il est <b>entouré sur ses quatre côtés</b> par des attaquants ou des cases hostiles (trône vide, angles).",
+              two:"Le roi est pris <b>comme un simple soldat</b>, pris en tenaille entre deux attaquants (ou un attaquant et une case hostile).",
+              hybrid:"Le roi est pris en tenaille <b>par deux attaquants</b>, sauf s'il est sur le trône ou à côté : il faut alors l'entourer sur quatre côtés (le trône vide comptant comme hostile)."}[r.kingCapture];
+  li.push(kc);
+  if(r.kingCapture!=='two' && r.escape==='corner')
+    li.push(r.edgeHostile ? "Le bord du plateau compte comme hostile au roi : <b>trois attaquants</b> suffisent à le prendre contre un bord." : "Le roi ne peut <b>pas être pris</b> tant qu'il est contre un bord.");
+  li.push(r.kingArmed ? "Le roi est <b>armé</b> : il participe aux captures, comme marteau ou comme enclume." : "Le roi est <b>désarmé</b> : il ne participe pas aux captures.");
+  li.push(`Seul le roi peut se poser sur le trône (case centrale ᛟ). ${r.passThrone ? "Les autres pièces peuvent le <b>traverser</b> lorsqu'il est vide." : "Aucune autre pièce ne peut le traverser."}`);
+  li.push(`Le trône est toujours hostile aux attaquants${r.throneHostileDef ? ", et aussi aux défenseurs lorsqu'il est vide" : ""}.`);
+  if(r.encircle) li.push("Si les attaquants <b>encerclent</b> entièrement le roi et tous ses défenseurs (aucun ne peut plus rejoindre un bord), ils gagnent.");
+  li.push({draw:"Si la même position revient trois fois, la partie est <b>nulle</b>.",
+           loseD:"Si la même position revient trois fois, <b>les défenseurs perdent</b> (répétition perpétuelle interdite).",
+           off:"Les répétitions de position ne sont pas sanctionnées."}[r.repetition]);
+  return '<ul>' + li.map(x => `<li>${x}</li>`).join('') + '</ul>';
+}
+function showRules(){
+  const v = V(document.getElementById('variant').value);
+  const cur = readRules(v.type);
+  let h = '<h2>Règles du jeu</h2>';
+  if(v.type==='tafl'){
+    h += `<p>Les <b>jeux de tafl</b> (du vieux norrois <i>tafl</i>, « table ») sont des jeux de stratégie germaniques et celtiques, joués en Scandinavie dès l'âge du fer puis à l'époque viking, avant d'être supplantés par les échecs. Ce sont des jeux <b>asymétriques</b> : un roi entouré de ses défenseurs, au centre, fait face à des attaquants deux fois plus nombreux, répartis sur les bords.</p>
+    <h3>Principes communs</h3>
+    <ul>
+      <li>Toutes les pièces (roi compris) se déplacent <b>orthogonalement, d'autant de cases que voulu</b>, comme la tour aux échecs, sans sauter par-dessus d'autres pièces.</li>
+      <li>Une pièce est <b>capturée</b> lorsqu'elle est prise en tenaille entre deux ennemis sur une même ligne ou colonne, ou entre un ennemi et une case hostile. La capture n'a lieu que si c'est l'adversaire qui referme la tenaille : une pièce qui se place d'elle-même entre deux ennemis ne risque rien.</li>
+      <li>Un seul déplacement peut capturer <b>plusieurs pièces</b> à la fois.</li>
+      <li>Un camp qui ne peut plus bouger aucune pièce <b>perd</b> la partie.</li>
+    </ul>
+    <h3>${v.name}${JSON.stringify(cur)!==JSON.stringify(Object.fromEntries(Object.keys(cur).map(k=>[k,v.rules[k]]))) ? ' <span class="tag">règles personnalisées</span>' : ''}</h3>
+    <p><i>${v.desc}</i></p>
+    ${describeTafl(cur)}`;
+  } else {
+    h += `<p>Le <b>halatafl</b> (« tafl de la queue ») est un jeu de chasse norrois, mentionné dès le XIVᵉ siècle : il est l'ancêtre du jeu du renard et des oies. Il se joue sur une grille en forme de croix de 33 cases.</p>
+    <h3>Règles</h3>
+    <ul>
+      <li>Les <b>moutons</b> jouent en premier. Ils avancent d'<b>une case</b> vers le haut ou sur le côté, jamais en arrière, et ne peuvent pas capturer.</li>
+      <li>Les <b>renards</b> se déplacent d'<b>une case</b> dans n'importe quelle direction orthogonale.</li>
+      <li>Un renard <b>mange</b> un mouton en sautant par-dessus lui, vers une case libre juste derrière (comme aux dames). Après une prise, il peut <b>enchaîner</b> d'autres sauts, ou cliquer sur « Terminer le tour ».</li>
+      <li>${cur.forcedCapture==='true' ? 'La <b>prise est obligatoire</b> : si un renard peut manger, il doit le faire.' : 'La prise est facultative.'}</li>
+      <li>Les moutons <b>gagnent</b> en occupant les <b>9 cases de l'enclos</b> (bras supérieur de la croix, en vert) ou en bloquant tous les renards.</li>
+      <li>Les renards <b>gagnent</b> s'il reste moins de 9 moutons (l'enclos ne peut plus être rempli) ou si les moutons ne peuvent plus bouger.</li>
+    </ul>`;
+  }
+  h += `<h3>Toutes les variantes</h3><ul>${VARIANTS.map(x => `<li><b>${x.name}</b> — ${x.desc}</li>`).join('')}</ul>
+  <p style="font-size:12px;color:var(--muted)">Les règles exactes de la plupart des tafl anciens sont perdues ; celles proposées ici suivent la page Wikipédia et les reconstitutions courantes. Chaque règle peut être modifiée dans le panneau de gauche avant de lancer une nouvelle partie.</p>`;
+  document.getElementById('rulesContent').innerHTML = h;
+  document.getElementById('rulesModal').classList.add('show');
+}
+
+/* =========================================================================
+   Son
+   ========================================================================= */
+let actx = null;
+function beep(kind){
+  if(!sound) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime;
+    const tones = {move:[[180,.07]], cap:[[140,.08],[90,.14]], win:[[330,.15],[440,.15],[660,.35]]}[kind];
+    let at = t;
+    for(const [f,d] of tones){
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = kind==='win' ? 'triangle' : 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(.18, at); g.gain.exponentialRampToValueAtTime(.001, at+d);
+      o.connect(g); g.connect(actx.destination); o.start(at); o.stop(at+d);
+      at += d*.8;
+    }
+  }catch(e){}
+}
+
+/* =========================================================================
+   Initialisation
+   ========================================================================= */
+function onVariantChange(){
+  const v = V(document.getElementById('variant').value);
+  document.getElementById('vdesc').textContent = v.desc;
+  document.getElementById('taflOpts').style.display = v.type==='tafl' ? '' : 'none';
+  document.getElementById('halaOpts').style.display = v.type==='hala' ? '' : 'none';
+  writeRules(v.type, v.rules);
+}
+(function init(){
+  const sel_ = document.getElementById('variant');
+  sel_.innerHTML = VARIANTS.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+  sel_.addEventListener('change', onVariantChange);
+  document.querySelectorAll('#taflOpts select, #halaOpts select').forEach(s => s.addEventListener('change', updateCustomTag));
+  document.getElementById('board').addEventListener('click', e => {
+    const cell = e.target.closest('.cell'); if(!cell || cell.dataset.r===undefined) return;
+    onCellClick(+cell.dataset.r, +cell.dataset.c);
+  });
+  document.getElementById('newBtn').onclick = () => {
+    if(state && !state.over && state.history.length && !confirm('Abandonner la partie en cours et en commencer une nouvelle ?')) return;
+    newGame(false);
+  };
+  document.getElementById('resetRules').onclick = () => { const v = V(sel_.value); writeRules(v.type, v.rules); };
+  document.getElementById('rulesBtn').onclick = showRules;
+  document.getElementById('undoBtn').onclick = undo;
+  document.getElementById('resignBtn').onclick = resign;
+  document.getElementById('endTurn').onclick = () => { sel = null; targets = []; endChain(); };
+  document.getElementById('soundBtn').onclick = () => { sound = !sound; render(); save(); };
+  document.getElementById('resetScore').onclick = () => { score = {p0:0,p1:0,draws:0}; saveScore(); };
+  document.getElementById('rematch').onclick = () => { sel_.value = state.vid; newGame(state.swap); };
+  document.getElementById('rematchSwap').onclick = () => { sel_.value = state.vid; newGame(!state.swap); };
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal').classList.remove('show'));
+  document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('show'); }));
+  ['name1','name2'].forEach(id => document.getElementById(id).addEventListener('input', () => { if(state){ render(); save(); } }));
+  window.addEventListener('resize', () => state && sizeBoard());
+  document.addEventListener('keydown', e => {
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
+    if(e.key==='Escape'){ document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); sel=null; targets=[]; if(state) render(); }
+  });
+  if(load()){
+    document.getElementById('vdesc').textContent = V(state.vid).desc;
+    document.getElementById('taflOpts').style.display = state.type==='tafl' ? '' : 'none';
+    document.getElementById('halaOpts').style.display = state.type==='hala' ? '' : 'none';
+    restoreChainSel();
+    render();
+  } else {
+    sel_.value = 'hnef11'; onVariantChange(); newGame(false);
+  }
+})();
+</script>
+</body>
+</html>
