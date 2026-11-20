@@ -1,6 +1,0 @@
-.git
-.github
-docker-compose*.yml
-README.md
-docker-workflow.yml
-.nojekyll
