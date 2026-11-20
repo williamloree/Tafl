@@ -2,6 +2,10 @@
 
 Jeu de tafl à deux joueurs sur le même écran, dans le navigateur : Hnefatafl (règles Wikipédia, Copenhague, Fetlar, 13×13), Tablut, Tawl-bwrdd, Brandubh, Ard-Rí, Alea evangelii, Gwyddbwyll, Fidchell et Halatafl. Toutes les règles sont réglables.
 
+## Jouer en ligne
+
+https://williamloree.github.io/Tafl/
+
 ## Jouer sans rien installer
 
 Ouvrir `index.html` dans un navigateur.
@@ -19,7 +23,7 @@ Le jeu est servi sur http://localhost:8080.
 À chaque push sur `main`, GitHub Actions construit l'image (amd64 et arm64) et la publie sur GHCR :
 
 ```
-ghcr.io/<compte>/tafl:latest
+ghcr.io/williamloree/tafl:latest
 ```
 
 Un tag `vX.Y.Z` publie aussi `X.Y.Z` et `X.Y`.
